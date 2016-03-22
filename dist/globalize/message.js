@@ -7,10 +7,10 @@
  * Released under the MIT license
  * http://jquery.org/license
  *
- * Date: 2016-03-22T08:50Z
+ * Date: 2016-03-22T12:38Z
  */
 /*!
- * Globalize v1.1.1 2016-03-22T08:50Z Released under the MIT license
+ * Globalize v1.1.1 2016-03-22T12:38Z Released under the MIT license
  * http://git.io/TrdQbw
  */
 (function( root, factory ) {
@@ -1436,7 +1436,7 @@ function propname(key, obj) {
  *  @param {function} [pluralFunc] - Optional custom pluralization function
  *  @param {function[]} [formatters] - Optional custom formatting functions  */
 function MessageFormat(locale, pluralFunc, formatters) {
-  this.lc = [locale];
+  this.lc = [locale];  
   this.runtime.pluralFuncs = {};
   this.runtime.pluralFuncs[this.lc[0]] = pluralFunc;
   this.runtime.fmt = {};
@@ -1660,7 +1660,7 @@ MessageFormat.prototype._precompile = function(ast, data) {
     case 'selectFormatPattern':
       data.pf_count = data.pf_count || 0;
       if (ast.type == 'selectFormatPattern') data.offset[data.pf_count] = 0;
-      var needOther = false;
+      var needOther = true;
       for (i = 0; i < ast.pluralForms.length; ++i) {
         var key = ast.pluralForms[i].key;
         if (key === 'other') needOther = false;

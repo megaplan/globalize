@@ -253,4 +253,13 @@ QUnit.test( "should allow for runtime compilation", function( assert ) {
 
 });
 
+QUnit.test( "should augment a skeleton", function( assert ) {
+	extraSetup();
+
+	assert.equal( Globalize.dateFormatter({ skeleton: "yMMMMd" })( date ), "September 15, 2010" );
+	assert.equal( Globalize.dateFormatter({ skeleton: "MMMMd" })( date ), "September 15" );
+	assert.equal( Globalize.dateFormatter({ skeleton: "MMMM" })( date ), "September" );
+	assert.equal( Globalize.dateFormatter({ skeleton: "EEEE" })( date ), "Wednesday" );
+});
+
 });

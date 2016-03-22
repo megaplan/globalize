@@ -7,10 +7,10 @@
  * Released under the MIT license
  * http://jquery.org/license
  *
- * Date: 2016-03-22T12:38Z
+ * Date: 2016-03-22T12:56Z
  */
 /*!
- * Globalize v1.1.1 2016-03-22T12:38Z Released under the MIT license
+ * Globalize v1.1.1 2016-03-22T12:56Z Released under the MIT license
  * http://git.io/TrdQbw
  */
 (function( root, factory ) {
@@ -1660,7 +1660,7 @@ MessageFormat.prototype._precompile = function(ast, data) {
     case 'selectFormatPattern':
       data.pf_count = data.pf_count || 0;
       if (ast.type == 'selectFormatPattern') data.offset[data.pf_count] = 0;
-      var needOther = true;
+      var needOther = false;
       for (i = 0; i < ast.pluralForms.length; ++i) {
         var key = ast.pluralForms[i].key;
         if (key === 'other') needOther = false;

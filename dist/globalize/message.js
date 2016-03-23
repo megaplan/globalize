@@ -7,10 +7,10 @@
  * Released under the MIT license
  * http://jquery.org/license
  *
- * Date: 2016-03-22T13:20Z
+ * Date: 2016-03-23T09:54Z
  */
 /*!
- * Globalize v1.1.1 2016-03-22T13:20Z Released under the MIT license
+ * Globalize v1.1.1 2016-03-23T09:54Z Released under the MIT license
  * http://git.io/TrdQbw
  */
 (function( root, factory ) {
@@ -1443,6 +1443,7 @@ function MessageFormat(locale, pluralFunc, formatters) {
   if (formatters) for (var f in formatters) {
     this.runtime.fmt[f] = formatters[f];
   }
+  this._useDefaultOther = false;
 }
 
 
@@ -1501,6 +1502,11 @@ MessageFormat.plurals = {};
  *  > mfunc({V:5.5})
  *  "The total is €5.50."  */
 MessageFormat.formatters = {};
+
+MessageFormat.prototype.useDefaultOther = function() {
+  this._useDefaultOther = true;
+  return this;
+};
 
 /** Enable or disable support for the default formatters, which require the
  *  `Intl` object. Note that this can't be autodetected, as the environment
@@ -1660,7 +1666,8 @@ MessageFormat.prototype._precompile = function(ast, data) {
     case 'selectFormatPattern':
       data.pf_count = data.pf_count || 0;
       if (ast.type == 'selectFormatPattern') data.offset[data.pf_count] = 0;
-      var needOther = false;
+      if (this._useDefaultOther) addDefaultOtherFormIfNotExists(ast, data.keys[data.pf_count]);
+      var needOther = true;
       for (i = 0; i < ast.pluralForms.length; ++i) {
         var key = ast.pluralForms[i].key;
         if (key === 'other') needOther = false;
@@ -1684,6 +1691,30 @@ MessageFormat.prototype._precompile = function(ast, data) {
       throw new Error( 'Bad AST type: ' + ast.type );
   }
 };
+
+function addDefaultOtherFormIfNotExists(ast, argumentIndex) {
+  for (var i = 0; i < ast.pluralForms.length; ++i) {
+    var key = ast.pluralForms[i].key;
+    if (key === 'other') {
+      return;
+    }
+  }
+  // default other form is `other {argumentIndex}`
+  var defaultOtherForm = {
+    "key": "other",
+    "val":{
+      "type":"messageFormatPattern",
+      "statements":[
+        {
+          "type": "messageFormatElement",
+          "argumentIndex": argumentIndex,
+          "output": true
+        }
+      ]
+    }
+  };
+  ast.pluralForms.push(defaultOtherForm);
+}
 
 /** Compile messages into an executable function with clean string
  *  representation.
@@ -2044,7 +2075,9 @@ Globalize.prototype.messageFormatter = function( path ) {
 		this.pluralGenerator() :
 		createErrorPluralModulePresence;
 
-	formatter = new MessageFormat( cldr.locale, pluralGenerator ).compile( message );
+	formatter = new MessageFormat( cldr.locale, pluralGenerator )
+		.useDefaultOther()
+		.compile( message );
 
 	returnFn = messageFormatterFn( formatter );
 

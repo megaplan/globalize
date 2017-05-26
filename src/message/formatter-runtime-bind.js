@@ -1,43 +1,35 @@
 define(function() {
 
-return function( cldr, messageformatter ) {
-	var locale = cldr.locale,
-		origToString = messageformatter.toString;
+return function( messageformatter, formatterSrc, runtime, pluralType, locale, formatters ) {
+	var hasFormatters = formatters.length > 0;
 
 	messageformatter.toString = function() {
-		var argNames, argValues, output,
-			args = {};
+		var locals = [];
+		var argCount = 0,
+			args = [];
 
-		// Properly adjust SlexAxton/messageformat.js compiled variables with Globalize variables:
-		output = origToString.call( messageformatter );
-
-		if ( /number\(/.test( output ) ) {
-			args.number = "messageFormat.number";
+		if ( runtime.number ) {
+			locals.push( "var number = messageFormat.number;" );
 		}
 
-		if ( /plural\(/.test( output ) ) {
-			args.plural = "messageFormat.plural";
+		if ( runtime.plural ) {
+			locals.push( "var plural = messageFormat.plural;" );
 		}
 
-		if ( /select\(/.test( output ) ) {
-			args.select = "messageFormat.select";
+		if ( runtime.select ) {
+			locals.push( "var select = messageFormat.select;" );
 		}
 
-		output.replace( /pluralFuncs(\[([^\]]+)\]|\.([a-zA-Z]+))/, function( match ) {
-			args.pluralFuncs = "{" +
-				"\"" + locale + "\": Globalize(\"" + locale + "\").pluralGenerator()" +
-				"}";
-			return match;
-		});
+		if ( pluralType !== false ) {
+			args.push( locale );
+			argCount++;
+		}
 
-		argNames = Object.keys( args ).join( ", " );
-		argValues = Object.keys( args ).map(function( key ) {
-			return args[ key ];
-		}).join( ", " );
-
-		return "(function( " + argNames + " ) {\n" +
-			"  return " + output + "\n" +
-			"})(" + argValues + ")";
+		return "(function( " + args.join( ", " ) + " ) {\n" +
+			( locals.length ? ( locals.join( "\n" ) + "\n" ) : "" ) +
+			( hasFormatters ? "  var fmt = [].slice.call( arguments, " + argCount + " );\n" : "" ) +
+			"  return " + formatterSrc + "\n" +
+			"})";
 	};
 
 	return messageformatter;

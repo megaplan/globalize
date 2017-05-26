@@ -2,7 +2,10 @@ define([
 	"../common/validate/parameter-type/message-variables"
 ], function( validateParameterTypeMessageVariables ) {
 
-return function( formatter ) {
+return function( formatter, shouldCall ) {
+	if ( shouldCall === "call" ) {
+		formatter = formatter.apply( null, [].slice.call( arguments, 2 ) );
+	}
 	return function messageFormatter( variables ) {
 		if ( typeof variables === "number" || typeof variables === "string" ) {
 			variables = [].slice.call( arguments, 0 );

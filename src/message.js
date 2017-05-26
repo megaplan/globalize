@@ -1,6 +1,5 @@
 define([
 	"cldr",
-	"messageformat",
 	"./common/create-error",
 	"./common/create-error/plural-module-presence",
 	"./common/runtime-bind",
@@ -12,15 +11,18 @@ define([
 	"./common/validate/parameter-type",
 	"./common/validate/parameter-type/plain-object",
 	"./core",
+	"./message/compiler",
+	"./message/formatter-runtime",
 	"./message/formatter-fn",
 	"./message/formatter-runtime-bind",
 	"./util/always-array",
 
 	"cldr/event"
-], function( Cldr, MessageFormat, createError, createErrorPluralModulePresence, runtimeBind,
+], function( Cldr, createError, createErrorPluralModulePresence, runtimeBind,
 	validateDefaultLocale, validateMessageBundle, validateMessagePresence, validateMessageType,
 	validateParameterPresence, validateParameterType, validateParameterTypePlainObject, Globalize,
-	messageFormatterFn, messageFormatterRuntimeBind, alwaysArray ) {
+	messageCompiler, messageFormatterRuntime, messageFormatterFn, messageFormatterRuntimeBind,
+	alwaysArray ) {
 
 var slice = [].slice;
 
@@ -82,17 +84,56 @@ Globalize.prototype.messageFormatter = function( path ) {
 	}
 	validateMessageType( path, message );
 
-	// Is plural module present? Yes, use its generator. Nope, use an error generator.
-	pluralGenerator = this.plural !== undefined ?
-		this.pluralGenerator() :
-		createErrorPluralModulePresence;
+	var compiler = new messageCompiler( this, Globalize._messageFmts );
+	var formatterSrc = compiler
+		.compile( message, cldr.locale );
 
-	formatter = new MessageFormat( cldr.locale, pluralGenerator ).compile( message );
+	var pluralType = false;
+	if ( compiler.pluralTypes.cardinal && compiler.pluralTypes.ordinal ) {
+		pluralType = "both";
+	} else if ( compiler.pluralTypes.cardinal ) {
+		pluralType = "cardinal";
+	} else if ( compiler.pluralTypes.ordinal ) {
+		pluralType = "ordinal";
+	}
 
-	returnFn = messageFormatterFn( formatter );
+	if ( pluralType !== false ) {
 
-	runtimeBind( args, cldr, returnFn,
-		[ messageFormatterRuntimeBind( cldr, formatter ), pluralGenerator ] );
+		// Is plural module present? Yes, use its generator. Nope, use an error generator.
+		pluralGenerator = this.plural !== undefined ?
+			this.pluralGenerator( { type: pluralType } ) :
+			createErrorPluralModulePresence;
+	}
+
+	var runtime = new messageFormatterRuntime( compiler.strictNumberSign );
+
+	/* jshint evil:true */
+	formatter = new Function(
+		"number, plural, select", messageCompiler.funcname( cldr.locale ),
+		"  var fmt = [].slice.call( arguments, 4 );\n" +
+		"  return " + formatterSrc + "\n"
+	);
+
+	returnFn = messageFormatterFn.apply( this, [
+		formatter, "call",
+		runtime.number, runtime.plural, runtime.select, pluralGenerator
+	].concat( compiler.formatters ) );
+
+	var runtimeArgs = [
+		messageFormatterRuntimeBind(
+			formatter, formatterSrc, compiler.runtime, pluralType, cldr.locale, compiler.formatters
+		),
+		"call"
+	];
+
+	if ( pluralGenerator ) {
+		runtimeArgs.push( pluralGenerator );
+	}
+	runtimeArgs = runtimeArgs.concat(
+		compiler.formatters
+	);
+
+	runtimeBind( args, cldr, returnFn, runtimeArgs );
 
 	return returnFn;
 };

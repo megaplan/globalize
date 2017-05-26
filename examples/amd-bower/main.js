@@ -41,6 +41,7 @@ require([
 	"json!cldr-data/supplemental/likelySubtags.json",
 	"json!cldr-data/supplemental/metaZones.json",
 	"json!cldr-data/supplemental/plurals.json",
+	"json!cldr-data/supplemental/ordinals.json",
 	"json!cldr-data/supplemental/timeData.json",
 	"json!cldr-data/supplemental/weekData.json",
 	"json!messages/en.json",
@@ -56,7 +57,7 @@ require([
 	"globalize/unit"
 ], function( Globalize, enGregorian, enCurrencies, enDateFields, enNumbers,
 	enTimeZoneNames, enUnits, currencyData, likelySubtags, metaZones,
-	pluralsData, timeData, weekData, messages, ianaTzData ) {
+	pluralsData, ordinalsData, timeData, weekData, messages, ianaTzData ) {
 
 	var en, like, number;
 
@@ -72,6 +73,7 @@ require([
 		likelySubtags,
 		metaZones,
 		pluralsData,
+		ordinalsData,
 		timeData,
 		weekData
 	);

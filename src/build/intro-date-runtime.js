@@ -15,6 +15,8 @@
  */
 (function( root, factory ) {
 
+	"use strict";
+
 	// UMD returnExports
 	if ( typeof define === "function" && define.amd ) {
 
@@ -37,8 +39,12 @@
 	}
 }(this, function( Globalize ) {
 
+"use strict";
+
 var createErrorUnsupportedFeature = Globalize._createErrorUnsupportedFeature,
+	looseMatching = Globalize._looseMatching,
 	regexpEscape = Globalize._regexpEscape,
+	removeLiteralQuotes = Globalize._removeLiteralQuotes,
 	runtimeKey = Globalize._runtimeKey,
 	stringPad = Globalize._stringPad,
 	validateParameterPresence = Globalize._validateParameterPresence,

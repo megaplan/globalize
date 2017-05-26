@@ -1,8 +1,8 @@
 # Globalize
 
-[![Build Status](https://secure.travis-ci.org/jquery/globalize.svg?branch=master)](http://travis-ci.org/jquery/globalize)
-[![devDependency Status](https://david-dm.org/jquery/globalize/status.svg)](https://david-dm.org/jquery/globalize#info=dependencies)
-[![devDependency Status](https://david-dm.org/jquery/globalize/dev-status.svg)](https://david-dm.org/jquery/globalize#info=devDependencies)
+[![Build Status](https://secure.travis-ci.org/globalizejs/globalize.svg?branch=master)](http://travis-ci.org/globalizejs/globalize)
+[![devDependency Status](https://david-dm.org/globalizejs/globalize/status.svg)](https://david-dm.org/globalizejs/globalize#info=dependencies)
+[![devDependency Status](https://david-dm.org/globalizejs/globalize/dev-status.svg)](https://david-dm.org/globalizejs/globalize#info=devDependencies)
 
 A JavaScript library for internationalization and localization that leverage the
 official [Unicode CLDR](http://cldr.unicode.org/) JSON data. The library works both for the browser and as a
@@ -146,9 +146,9 @@ information on its usage.
 |---|--:|--:|---|
 | globalize.js | 1.5KB | 1.0KB | [Core library](#core-module) |
 | globalize/currency.js | 2.6KB | 0.6KB | [Currency module](#currency-module) provides currency formatting and parsing |
-| globalize/date.js | 5.1KB | 3.8KB | [Date module](#date-module) provides date formatting and parsing |
+| globalize/date.js | 7.7KB | 5.0KB | [Date module](#date-module) provides date formatting and parsing |
 | globalize/message.js | 5.4KB | 0.7KB | [Message module](#message-module) provides ICU message format support |
-| globalize/number.js | 3.1KB | 1.8KB | [Number module](#number-module) provides number formatting and parsing |
+| globalize/number.js | 3.8KB | 2.1KB | [Number module](#number-module) provides number formatting and parsing |
 | globalize/plural.js | 2.3KB | 0.4KB | [Plural module](#plural-module) provides pluralization support |
 | globalize/relative-time.js | 0.8KB | 0.6KB | [Relative time module](#relative-time-module) provides relative time formatting support |
 | globalize/unit.js | 0.9KB | 0.5KB | [Unit module](#unit-module) provides unit formatting support |
@@ -169,12 +169,13 @@ version of a browser is 24.x, we support the 24.x and 23.x versions.
 
 ## Getting Started
 
-    npm install globalize cldr-data
+    npm install globalize cldr-data iana-tz-data
 
 ```js
 var Globalize = require( "globalize" );
 Globalize.load( require( "cldr-data" ).entireSupplemental() );
 Globalize.load( require( "cldr-data" ).entireMainFor( "en", "es" ) );
+Globalize.loadTimeZone( require( "iana-tz-data" ) );
 
 Globalize("en").formatDate(new Date());
 // > "11/27/2015"
@@ -183,22 +184,32 @@ Globalize("es").formatDate(new Date());
 // > "27/11/2015"
 ```
 
-Read the [Locales section](#locales) for more information about supported locales. For AMD, bower and other usage examples, see [Examples section](#examples).
+Note `cldr-data` is an optional module, read [CLDR content](#2-cldr-content)
+section below for more information on how to get CLDR from different sources.
+
+The [`iana-tz-data`](https://github.com/rxaviers/iana-tz-data) module is only
+needed when IANA time zones (via `options.timeZone`) are used with date
+functions. Read [IANA time zone data](#3-iana-time-zone-data) below for more
+information.
+
+Read the [Locales section](#locales) for more information about supported
+locales. For AMD, bower and other usage examples, see [Examples
+section](#examples).
 
 ### Installation
 
 *By downloading a ZIP or a TAR.GZ...*
 
-Click the github [releases tab](https://github.com/jquery/globalize/releases)
+Click the github [releases tab](https://github.com/globalizejs/globalize/releases)
 and download the latest available Globalize package.
 
 *By using a package manager...*
 
-Use bower `bower install globalize`, or npm `npm install globalize cldr-data`.
+Use bower `bower install globalize`, or npm `npm install globalize`.
 
 *By using source files...*
 
-1. `git clone https://github.com/jquery/globalize.git`.
+1. `git clone https://github.com/globalizejs/globalize.git`.
 1. [Build the distribution files](#build).
 
 ### Requirements
@@ -243,7 +254,7 @@ requirements. See table below.
 |---|---|
 | Core module | cldr/supplemental/likelySubtags.json |
 | Currency module | cldr/main/`locale`/currencies.json<br>cldr/supplemental/currencyData.json<br>+CLDR JSON files from number module<br>+CLDR JSON files from plural module for name style support |
-| Date module | cldr/main/`locale`/ca-gregorian.json<br>cldr/main/`locale`/timeZoneNames.json<br>cldr/supplemental/timeData.json<br>cldr/supplemental/weekData.json<br>+CLDR JSON files from number module |
+| Date module | cldr/main/`locale`/ca-gregorian.json<br>cldr/main/`locale`/timeZoneNames.json<br>cldr/supplemental/metaZones.json<br>cldr/supplemental/timeData.json<br>cldr/supplemental/weekData.json<br>+CLDR JSON files from number module |
 | Number module | cldr/main/`locale`/numbers.json<br>cldr/supplemental/numberingSystems.json |
 | Plural module | cldr/supplemental/plurals.json (for cardinals)<br>cldr/supplemental/ordinals.json (for ordinals) |
 | Relative time module | cldr/main/`locale`/dateFields.json<br>+CLDR JSON files from number and plural modules |
@@ -253,7 +264,25 @@ As an alternative to deducing this yourself, use this [online tool](http://johnn
 
 *(b) How am I supposed to get and load CLDR content?*
 
-Learn [how to get and load CLDR content...](doc/cldr.md).
+Learn [how to get and load CLDR content...](doc/cldr.md) and use
+[`Globalize.load()`](#core-module) to load it.
+
+#### 3. IANA time zone data
+
+The IANA time zone (tz) database, sometimes called the Olson database, is the
+standard data used by Unicode CLDR, ECMA-402, Linux, UNIX, Java, ICU, and
+others. It's used by Globalize to circumvent the JavaScript limitations with
+respect to manipulating date in time zones other than the user's environment.
+
+In short, feed Globalize on IANA time zone data if you need to format or parse
+dates in a specific time zone, independently of the user's environment, e.g.,
+`America/Los_Angeles`.
+
+It's important to note there's no official IANA time zone data in the JSON
+format. Therefore, [`iana-tz-data`](https://github.com/rxaviers/iana-tz-data)
+has been adopted for convenience.
+
+Learn more on [`Globalize.loadTimeZone()`](#date-module).
 
 ### Usage
 
@@ -314,7 +343,7 @@ To illustrate, see our [Basic Globalize Compiler example][].
 For information about the Globalize Compiler CLI or its JavaScript API, see the
 [Globalize Compiler documentation][].
 
-[Globalize Compiler documentation]: https://github.com/jquery-support/globalize-compiler#README
+[Globalize Compiler documentation]: https://github.com/globalizejs/globalize-compiler#README
 
 ### Examples
 
@@ -324,6 +353,7 @@ existing tools.
 - [Application example using webpack and npm](examples/app-npm-webpack/): easy to
   get started, automated CLDR loading and precompilation for production, but
   requires npm and webpack knowledge.
+- [Application example using globalize-express middleware with any express web app](https://github.com/devangnegandhi/globalize-express/tree/master/example): easy to incorporate globalize as a middleware within your express web add. (also checkout [globalize-express](https://github.com/devangnegandhi/globalize))
 
 If you're using a different tool than the one above, but you're comfortable
 using JavaScript modules (such as ES6 modules, CommonJS, or AMD) and package
@@ -405,7 +435,7 @@ Figure out the deduced information by looking at the
 ```js
 var Globalize = require( "globalize" );
 Globalize.load( require( "cldr-data" ).entireSupplemental() );
-Globalize("en").cldr.attributes.maxLanguageId;
+Globalize( "en" ).cldr.attributes.maxLanguageId;
 // > "en-Latn-US"
 ```
 
@@ -418,6 +448,13 @@ Read more details about locale at [UTS#35 locale][].
 [UTS#35 locale]: http://www.unicode.org/reports/tr35/#Locale
 
 ### Date module
+
+- **`Globalize.loadTimeZone( ianaTzData )`**
+
+  This method allows you to load IANA time zone data to enable
+  `options.timeZone` feature on date formatters and parsers.
+
+  [Read more...](doc/api/date/load-iana-time-zone.md)
 
 - **`.dateFormatter( [options] )`**
 
@@ -439,9 +476,33 @@ Read more details about locale at [UTS#35 locale][].
 
   .dateFormatter({ datetime: "medium" })( new Date() )
   // > "Nov 1, 2010, 5:55:00 PM"
+
+  .dateFormatter({ datetime: "full", timeZone: "America/New_York" })( new Date() );
+  // > "Monday, November 1, 2010 at 3:55:00 AM Eastern Daylight Time"
+
+  .dateFormatter({ datetime: "full", timeZone: "America/Los_Angeles" })( new Date() );
+  // > "Monday, November 1, 2010 at 12:55:00 AM Pacific Daylight Time"
   ```
 
   [Read more...](doc/api/date/date-formatter.md)
+
+- **.dateToPartsFormatter( [options] )`**
+
+  Return a function that formats a date into parts tokens according to the given `options`. The
+  default formatting is numeric year, month, and day (i.e., `{ skeleton: "yMd" }`.
+
+  ```javascript
+  .dateToPartsFormatter()( new Date() )
+  // > [
+  //   { "type": "month", "value": "3" },
+  //   { "type": "literal", "value": "/" },
+  //   { "type": "day", "value": "17" },
+  //   { "type": "literal", "value": "/" },
+  //   { "type": "year", "value": "2017" }
+  // ]
+  ```
+
+  [Read more...](doc/api/date/date-to-parts-formatter.md)
 
 - **`.dateParser( [options] )`**
 
@@ -471,6 +532,10 @@ Read more details about locale at [UTS#35 locale][].
 - **`.formatDate( value [, options] )`**
 
   Alias for `.dateFormatter( [options] )( value )`.
+
+- **`.formatDateToParts( value [, options] )`**
+
+  Alias for `.dateToPartsFormatter( [options] )( value )`.
 
 - **`.parseDate( value [, options] )`**
 
@@ -747,17 +812,17 @@ best suites your interest: [quick change][], [new features][], [bug fixes][],
 module][], [number module][], [plural module][], [relative time module][]. Last
 but not least, feel free to [get in touch](http://irc.jquery.org/).
 
-[bug fixes]: https://github.com/jquery/globalize/labels/bug
-[documentation improvements]: https://github.com/jquery/globalize/labels/docs
-[new features]: https://github.com/jquery/globalize/labels/new%20feature
-[quick change]: https://github.com/jquery/globalize/labels/quick%20change
+[bug fixes]: https://github.com/globalizejs/globalize/labels/bug
+[documentation improvements]: https://github.com/globalizejs/globalize/labels/docs
+[new features]: https://github.com/globalizejs/globalize/labels/new%20feature
+[quick change]: https://github.com/globalizejs/globalize/labels/quick%20change
 
-[currency module]: https://github.com/jquery/globalize/labels/currency%20module
-[date module]: https://github.com/jquery/globalize/labels/date%20module
-[message module]: https://github.com/jquery/globalize/labels/message%20module
-[number module]: https://github.com/jquery/globalize/labels/number%20module
-[plural module]: https://github.com/jquery/globalize/labels/plural%20module
-[relative time module]: https://github.com/jquery/globalize/labels/relative%20time%20module
+[currency module]: https://github.com/globalizejs/globalize/labels/currency%20module
+[date module]: https://github.com/globalizejs/globalize/labels/date%20module
+[message module]: https://github.com/globalizejs/globalize/labels/message%20module
+[number module]: https://github.com/globalizejs/globalize/labels/number%20module
+[plural module]: https://github.com/globalizejs/globalize/labels/plural%20module
+[relative time module]: https://github.com/globalizejs/globalize/labels/relative%20time%20module
 
 ### Roadmap
 
@@ -773,8 +838,8 @@ find:
   accomplish now. Releases are published following semver rules as often as
   possible.
 
-[Ongoing work]: https://github.com/jquery/globalize/labels/Current%20Sprint
-[Everything else]: https://github.com/jquery/globalize/issues?utf8=%E2%9C%93&q=is%3Aopen+-label%3A%22Current+Sprint%22+
+[Ongoing work]: https://github.com/globalizejs/globalize/labels/Current%20Sprint
+[Everything else]: https://github.com/globalizejs/globalize/issues?utf8=%E2%9C%93&q=is%3Aopen+-label%3A%22Current+Sprint%22+
 
 ## Development
 

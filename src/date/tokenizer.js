@@ -1,13 +1,17 @@
 define([
 	"./pattern-re",
+	"../util/loose-matching",
 	"../util/regexp/escape",
-	"../util/regexp/n"
-], function( datePatternRe, regexpEscape, regexpN ) {
+	"../util/regexp/n",
+	"../util/remove-literal-quotes"
+], function( datePatternRe, looseMatching, regexpEscape, regexpN, removeLiteralQuotes ) {
 
 /**
- * tokenizer( value, pattern, properties )
+ * tokenizer( value, numberParser, properties )
  *
  * @value [String] string date.
+ *
+ * @numberParser [Function]
  *
  * @properties [Object] output returned by date/tokenizer-properties.
  *
@@ -41,8 +45,18 @@ return function( value, numberParser, properties ) {
 		tokens = [],
 		widths = [ "abbreviated", "wide", "narrow" ];
 
+	function regexpSourceSomeTerm( terms ) {
+		return "(" + terms.filter(function( item ) {
+			return item;
+		}).reduce(function( memo, item ) {
+			return memo + "|" + item;
+		}) + ")";
+	}
+
+	value = looseMatching( value );
+
 	valid = properties.pattern.match( datePatternRe ).every(function( current ) {
-		var chr, length, numeric, tokenRe,
+		var aux, chr, length, numeric, tokenRe,
 			token = {};
 
 		function hourFormatParse( tokenRe, numberParser ) {
@@ -119,7 +133,16 @@ return function( value, numberParser, properties ) {
 
 				// Unicode equivalent to /\d\d?/
 				numeric = true;
-				return tokenRe = new RegExp( "(" + regexpN.source + ")(" + regexpN.source + ")?" );
+				return tokenRe = new RegExp( "(" + regexpN.source + "){1,2}" );
+			}
+		}
+
+		function oneOrTwoDigitsIfLengthOneOrTwo() {
+			if ( length === 1 || length === 2 ) {
+
+				// Unicode equivalent to /\d\d?/
+				numeric = true;
+				return tokenRe = new RegExp( "(" + regexpN.source + "){1,2}" );
 			}
 		}
 
@@ -128,28 +151,33 @@ return function( value, numberParser, properties ) {
 
 				// Unicode equivalent to /\d\d/
 				numeric = true;
-				return tokenRe = new RegExp( "(" + regexpN.source + ")(" + regexpN.source + ")" );
+				return tokenRe = new RegExp( "(" + regexpN.source + "){2}" );
 			}
 		}
 
 		// Brute-force test every locale entry in an attempt to match the given value.
 		// Return the first found one (and set token accordingly), or null.
 		function lookup( path ) {
-			var i, re,
-				data = properties[ path.join( "/" ) ];
+			var array = properties[ path.join( "/" ) ];
 
-			for ( i in data ) {
-				re = new RegExp( "^" + data[ i ] );
-				if ( re.test( value ) ) {
-					token.value = i;
-					return tokenRe = new RegExp( data[ i ] );
-				}
+			if ( !array ) {
+				return null;
 			}
+
+			// array of pairs [key, value] sorted by desc value length.
+			array.some(function( item ) {
+				var valueRe = item[ 1 ];
+				if ( valueRe.test( value ) ) {
+					token.value = item[ 0 ];
+					tokenRe = item[ 1 ];
+					return true;
+				}
+			});
 			return null;
 		}
 
 		token.type = current;
-		chr = current.charAt( 0 ),
+		chr = current.charAt( 0 );
 		length = current.length;
 
 		if ( chr === "Z" ) {
@@ -169,6 +197,38 @@ return function( value, numberParser, properties ) {
 				chr = "X";
 				length = 5;
 			}
+		}
+
+		if ( chr === "z" ) {
+			var standardTzName = properties.standardTzName;
+			var daylightTzName = properties.daylightTzName;
+			if ( standardTzName || daylightTzName ) {
+				token.value = null;
+				tokenRe = new RegExp(
+					regexpSourceSomeTerm([ standardTzName, daylightTzName ])
+				);
+			}
+		}
+
+		// v...vvv: "{shortRegion}", eg. "PT".
+		// vvvv: "{regionName} {Time}" or "{regionName} {Time}",
+		// e.g., "Pacific Time"
+		// http://unicode.org/reports/tr35/tr35-dates.html#Date_Format_Patterns
+		if ( chr === "v" ) {
+			if ( properties.genericTzName ) {
+				token.value = null;
+				tokenRe = new RegExp( properties.genericTzName );
+
+			// Fall back to "V" format.
+			} else {
+				chr = "V";
+				length = 4;
+			}
+		}
+
+		if ( chr === "V" && properties.timeZoneName ) {
+			token.value = length === 2 ? properties.timeZoneName : null;
+			tokenRe = new RegExp( properties.timeZoneName );
 		}
 
 		switch ( chr ) {
@@ -193,8 +253,11 @@ return function( value, numberParser, properties ) {
 					tokenRe = new RegExp( "(" + regexpN.source + ")+" );
 				} else if ( length === 2 ) {
 
-					// Unicode equivalent to /\d\d/
-					tokenRe = new RegExp( "(" + regexpN.source + ")(" + regexpN.source + ")" );
+					// Lenient parsing: there's no year pattern to indicate non-zero-padded 2-digits
+					// year, so parser accepts both zero-padded and non-zero-padded for `yy`.
+					//
+					// Unicode equivalent to /\d\d?/
+					tokenRe = new RegExp( "(" + regexpN.source + "){1,2}" );
 				} else {
 
 					// Unicode equivalent to /\d{length,}/
@@ -208,11 +271,12 @@ return function( value, numberParser, properties ) {
 
 				// number l=1:{1}, l=2:{2}.
 				// lookup l=3...
-				oneDigitIfLengthOne() || twoDigitsIfLengthTwo() || lookup([
-					"gregorian/quarters",
-					chr === "Q" ? "format" : "stand-alone",
-					widths[ length - 3 ]
-				]);
+				oneDigitIfLengthOne() || twoDigitsIfLengthTwo() ||
+					lookup([
+						"gregorian/quarters",
+						chr === "Q" ? "format" : "stand-alone",
+						widths[ length - 3 ]
+					]);
 				break;
 
 			// Month
@@ -221,7 +285,11 @@ return function( value, numberParser, properties ) {
 
 				// number l=1:{1,2}, l=2:{2}.
 				// lookup l=3...
-				oneOrTwoDigitsIfLengthOne() || twoDigitsIfLengthTwo() || lookup([
+				//
+				// Lenient parsing: skeleton "yMd" (i.e., one M) may include MM for the pattern,
+				// therefore parser accepts both zero-padded and non-zero-padded for M and MM.
+				// Similar for L.
+				oneOrTwoDigitsIfLengthOneOrTwo() || lookup([
 					"gregorian/months",
 					chr === "M" ? "format" : "stand-alone",
 					widths[ length - 3 ]
@@ -234,7 +302,7 @@ return function( value, numberParser, properties ) {
 				// number {l,3}.
 				if ( length <= 3 ) {
 
-					// Unicode equivalent to /\d{length,3}/
+					// Equivalent to /\d{length,3}/
 					numeric = true;
 					tokenRe = new RegExp( "(" + regexpN.source + "){" + length + ",3}" );
 				}
@@ -289,8 +357,14 @@ return function( value, numberParser, properties ) {
 				]);
 				break;
 
-			// Week, Day, Hour, Minute, or Second
+			// Week
 			case "w":
+
+				// number l1:{1,2}, l2:{2}.
+				oneOrTwoDigitsIfLengthOne() || twoDigitsIfLengthTwo();
+				break;
+
+			// Day, Hour, Minute, or Second
 			case "d":
 			case "h":
 			case "H":
@@ -301,7 +375,17 @@ return function( value, numberParser, properties ) {
 			case "s":
 
 				// number l1:{1,2}, l2:{2}.
-				oneOrTwoDigitsIfLengthOne() || twoDigitsIfLengthTwo();
+				//
+				// Lenient parsing:
+				// - skeleton "hms" (i.e., one m) always includes mm for the pattern, i.e., it's
+				//   impossible to use a different skeleton to parse non-zero-padded minutes,
+				//   therefore parser accepts both zero-padded and non-zero-padded for m. Similar
+				//   for seconds s.
+				// - skeleton "hms" (i.e., one h) may include h or hh for the pattern, i.e., it's
+				//   impossible to use a different skeleton to parser non-zero-padded hours for some
+				//   locales, therefore parser accepts both zero-padded and non-zero-padded for h.
+				//   Similar for d (in skeleton yMd).
+				oneOrTwoDigitsIfLengthOneOrTwo();
 				break;
 
 			case "S":
@@ -323,7 +407,17 @@ return function( value, numberParser, properties ) {
 				break;
 
 			// Zone
+			case "v":
+			case "V":
 			case "z":
+				if ( tokenRe && new RegExp( "^" + tokenRe.source ).test( value ) ) {
+					break;
+				}
+				if ( chr === "V" && length === 2 ) {
+					break;
+				}
+
+			/* falls through */
 			case "O":
 
 				// O: "{gmtFormat}+H;{gmtFormat}-H" or "{gmtZeroFormat}", eg. "GMT-8" or "GMT".
@@ -332,12 +426,17 @@ return function( value, numberParser, properties ) {
 					token.value = 0;
 					tokenRe = new RegExp( properties[ "timeZoneNames/gmtZeroFormat" ] );
 				} else {
-					tokenRe = hourFormatRe(
-						length < 4 ? "+H;-H" : properties[ "timeZoneNames/hourFormat" ],
-						properties[ "timeZoneNames/gmtFormat" ],
-						timeSeparator
-					);
-					if ( !hourFormatParse( tokenRe, numberParser ) ) {
+					aux = properties[ "timeZoneNames/hourFormat" ].some(function( hourFormat ) {
+						tokenRe = hourFormatRe(
+							hourFormat,
+							properties[ "timeZoneNames/gmtFormat" ],
+							timeSeparator
+						);
+						if ( hourFormatParse( tokenRe, numberParser ) ) {
+							return true;
+						}
+					});
+					if ( !aux ) {
 						return null;
 					}
 				}
@@ -368,16 +467,12 @@ return function( value, numberParser, properties ) {
 
 			case "'":
 				token.type = "literal";
-				current = current.replace( /''/, "'" );
-				if ( length > 2 ) {
-					current = current.slice( 1, -1 );
-				}
-				tokenRe = new RegExp( regexpEscape( current ) );
+				tokenRe = new RegExp( regexpEscape( removeLiteralQuotes( current ) ) );
 				break;
 
 			default:
 				token.type = "literal";
-				tokenRe = /./;
+				tokenRe = new RegExp( regexpEscape( current ) );
 		}
 
 		if ( !tokenRe ) {
@@ -385,6 +480,7 @@ return function( value, numberParser, properties ) {
 		}
 
 		// Get lexeme and consume it.
+		// TODO: Improve performance by reducing the abusive use of regexps.
 		value = value.replace( new RegExp( "^" + tokenRe.source ), function( lexeme ) {
 			token.lexeme = lexeme;
 			if ( numeric ) {
@@ -394,6 +490,10 @@ return function( value, numberParser, properties ) {
 		});
 
 		if ( !token.lexeme ) {
+			return false;
+		}
+
+		if ( numeric && isNaN( token.value ) ) {
 			return false;
 		}
 

@@ -8,6 +8,24 @@ document.getElementById( "date" ).textContent = Globalize.formatDate( new Date()
 	datetime: "medium"
 });
 
+// Use Globalize to format dates on specific time zone.
+document.getElementById( "zonedDate" ).textContent = Globalize.formatDate( new Date(), {
+	datetime: "full",
+	timeZone: "America/Sao_Paulo"
+});
+
+// Use Globalize to format dates to parts.
+document.getElementById( "dateToParts" ).innerHTML = Globalize.formatDateToParts( new Date(), {
+	datetime: "medium"
+}).map(function( part ) {
+	switch(part.type) {
+		case "month": return "<strong>" + part.value + "</strong>";
+		default: return part.value;
+	}
+}).reduce(function( memo, value ) {
+	return memo + value;
+});
+
 // Use Globalize to format numbers.
 number = Globalize.numberFormatter();
 document.getElementById( "number" ).textContent = number( 12345.6789 );

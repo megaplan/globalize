@@ -1,17 +1,11 @@
-define([
-	"../common/validate/parameter-presence",
-	"../common/validate/parameter-type/date",
-	"./format"
-], function( validateParameterPresence, validateParameterTypeDate, dateFormat ) {
+define(function() {
 
-return function( numberFormatters, properties ) {
+return function( dateToPartsFormatter ) {
 	return function dateFormatter( value ) {
-		validateParameterPresence( value, "value" );
-		validateParameterTypeDate( value, "value" );
-
-		return dateFormat( value, numberFormatters, properties );
+		return dateToPartsFormatter( value ).map( function( part ) {
+			return part.value;
+		}).join( "" );
 	};
-
 };
 
 });

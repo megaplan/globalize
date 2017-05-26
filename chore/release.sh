@@ -52,9 +52,13 @@ function error {
 
 function update_authors {
 	h1 Update AUTHORS file
-	grunt update-authors > /dev/null &&
+	grunt update-authors > /dev/null
+	if [ -z "$(git diff)" ]; then
+		echo No updates for AUTHORS file needed...
+	else
 		git commit -a -m 'AUTHORS: Update' > /dev/null &&
-		git show --stat
+			git show --stat
+	fi
 }
 
 function update_version {
@@ -91,6 +95,7 @@ function final_message {
 	echo Now you need to:
 	echo git push --tags origin
 	echo npm publish
+	echo git checkout master
 	echo git branch -D $TARGET_BRANCH
 }
 
@@ -102,5 +107,4 @@ assertions $1 &&
 	git checkout -b $TARGET_BRANCH &&
 	build &&
 	tag $1 &&
-	git checkout master > /dev/null &&
 	final_message

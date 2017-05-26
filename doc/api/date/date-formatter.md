@@ -21,8 +21,7 @@ A JSON object including one of the following.
 > list `full`, `long`, `medium`, or `short` represented by date, time, or
 > datetime.  Instead, they are an open-ended list of patterns containing
 > only date field information, and in a canonical order. For a complete list of 
-> skeleton patterns [check the unicode CLDR documentation](http://www.unicode.o
-> rg/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table).
+> skeleton patterns [check the unicode CLDR documentation](http://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table).
 > 
 > For example:
 >
@@ -55,6 +54,12 @@ A JSON object including one of the following.
 > [raw pattern (anything in the "Sym." column)](http://www.unicode.org/reports/tr35/tr35-dates.html#Date_Field_Symbol_Table)
 > eg. `{ raw: "dd/mm" }`. Note this is NOT recommended for i18n in general.
 > Use `skeleton` instead.
+>
+> **timeZone**
+>
+> String based on the time zone names of the [IANA time zone
+> database](https://www.iana.org/time-zones), such as `"Asia/Shanghai"`, `"Asia/Kolkata"`,
+> `"America/New_York"`.
 
 **value**
 
@@ -64,14 +69,11 @@ Date instance to be formatted, eg. `new Date()`;
 
 Prior to using any date methods, you must load
 `cldr/main/{locale}/ca-gregorian.json`, `cldr/main/{locale}/timeZoneNames.json`,
-`cldr/supplemental/timeData.json`, `cldr/supplemental/weekData.json`, and the
-CLDR content required by the number module. Read [CLDR content][] if you need
-more information.
+`cldr/supplemental/metaZones.json`, `cldr/supplemental/timeData.json`,
+`cldr/supplemental/weekData.json`, and the CLDR content required by the number
+module. Read [CLDR content][] if you need more information.
 
 [CLDR content]: ../../../README.md#2-cldr-content
-
-You can use the static method `Globalize.dateFormatter()`, which uses the default
-locale.
 
 ```javascript
 var formatter;
@@ -90,7 +92,7 @@ var enFormatter = Globalize( "en" ).dateFormatter(),
   deFormatter = Globalize( "de" ).dateFormatter();
 
 enFormatter( new Date( 2010, 10, 30, 17, 55 ) );
-// > "11/30/2010, 5:55 PM"
+// > "11/30/2010"
 
 deFormatter( new Date( 2010, 10, 30, 17, 55 ) );
 // > "30.11.2010"
@@ -107,12 +109,12 @@ are: `full`, `long`, `medium`, and `short`.
 | `{ date: "full" }` | `"Monday, November 1, 2010"` |
 | `{ time: "short" }` | `"5:55 PM"` |
 | `{ time: "medium" }` | `"5:55:00 PM"` |
-| `{ time: "long" }` | `"5:55:00 PM GMT-2"` |
-| `{ time: "full" }` | `"5:55:00 PM GMT-02:00"` |
+| `{ time: "long" }` | `"5:55:00 PM PST"` |
+| `{ time: "full" }` | `"5:55:00 PM Pacific Standard Time"` |
 | `{ datetime: "short" }` | `"11/1/10, 5:55 PM"` |
 | `{ datetime: "medium" }` | `"Nov 1, 2010, 5:55:00 PM"` |
-| `{ datetime: "long" }` | `"November 1, 2010 at 5:55:00 PM GMT-2"` |
-| `{ datetime: "full" }` | `"Monday, November 1, 2010 at 5:55:00 PM GMT-02:00"` |
+| `{ datetime: "long" }` | `"November 1, 2010 at 5:55:00 PM PST"` |
+| `{ datetime: "full" }` | `"Monday, November 1, 2010 at 5:55:00 PM Pacific Standard Time"` |
 
 For comparison, follow the same formatter `{ datetime: "short" }` on different locales.
 
@@ -127,7 +129,7 @@ For comparison, follow the same formatter `{ datetime: "short" }` on different l
 | *pt* | `"01/11/10 17:55"` |
 | *ar* | `"١‏/١١‏/٢٠١٠ ٥،٥٥ م"` |
 
-Use skeletons for more flexibility (see its description [above](#parameters)).
+Use open-ended skeletons for more flexibility (see its description [above](#parameters)). See some examples below.
 
 | `skeleton` | `Globalize( "en" ).dateFormatter( skeleton )( new Date( 2010, 10, 1, 17, 55 ) )` |
 | --- | --- |
@@ -182,6 +184,26 @@ monthDayFormatter( date );
 
 hourMinuteSecondFormatter( date );
 // > "17:55:00"
+```
+
+Using specific timeZones, i.e., using `options.timezone`. Note that prior to using
+it, you must load IANA time zone data.
+
+```js
+Globalize.loadTimeZone( require( "iana-tz-data" ) );
+```
+
+```js
+Globalize.locale( "en" );
+
+Globalize.dateFormatter({ datetime: "medium", timeZone: "America/Los_Angeles" })( new Date() );
+// > "Nov 1, 2010, 12:55:00 PM"
+
+Globalize.dateFormatter({ datetime: "medium", timeZone: "America/Sao_Paulo" })( new Date() )
+// > "Nov 1, 2010, 5:55:00 PM"
+
+Globalize.dateFormatter({ datetime: "full", timeZone: "Europe/Berlin" })( new Date() )
+// > "Monday, November 1, 2010 at 8:55:00 PM Central European Standard Time"
 ```
 
 For improved performance on iterations, first create the formatter. Then, reuse

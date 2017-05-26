@@ -1,4 +1,5 @@
 define([
+	"zoned-date-time",
 	"./is-leap-year",
 	"./last-day-of-month",
 	"./pattern-re",
@@ -6,7 +7,7 @@ define([
 	"../common/create-error/unsupported-feature",
 	"../util/date/set-month",
 	"../util/out-of-range"
-], function( dateIsLeapYear, dateLastDayOfMonth, datePatternRe, dateStartOf,
+], function( ZonedDateTime, dateIsLeapYear, dateLastDayOfMonth, datePatternRe, dateStartOf,
 	createErrorUnsupportedFeature, dateSetMonth, outOfRange ) {
 
 /**
@@ -32,6 +33,11 @@ return function( value, tokens, properties ) {
 		date = new Date(),
 		truncateAt = [],
 		units = [ "year", "month", "day", "hour", "minute", "second", "milliseconds" ];
+
+	// Create globalize date with given timezone data.
+	if ( properties.timeZoneData ) {
+		date = new ZonedDateTime( date, properties.timeZoneData() );
+	}
 
 	if ( !tokens.length ) {
 		return null;
@@ -222,12 +228,16 @@ return function( value, tokens, properties ) {
 				break;
 
 			// Zone
-			case "Z":
 			case "z":
+			case "Z":
 			case "O":
+			case "v":
+			case "V":
 			case "X":
 			case "x":
-				timezoneOffset = token.value - date.getTimezoneOffset();
+				if ( typeof token.value === "number" ) {
+					timezoneOffset = token.value;
+				}
 				break;
 		}
 
@@ -271,8 +281,8 @@ return function( value, tokens, properties ) {
 		date.setHours( date.getHours() + 12 );
 	}
 
-	if ( timezoneOffset ) {
-		date.setMinutes( date.getMinutes() + timezoneOffset );
+	if ( timezoneOffset !== undefined ) {
+		date.setMinutes( date.getMinutes() + timezoneOffset - date.getTimezoneOffset() );
 	}
 
 	// Truncate date at the most precise unit defined. Eg.
@@ -280,6 +290,13 @@ return function( value, tokens, properties ) {
 	// => new Date( <current Year>, 12, 31, 0, 0, 0, 0 );
 	truncateAt = Math.max.apply( null, truncateAt );
 	date = dateStartOf( date, units[ truncateAt ] );
+
+	// Get date back from globalize date.
+	if ( date instanceof ZonedDateTime ) {
+
+		// TODO can we improve this? E.g., toDate()
+		date = new Date( date.getTime() );
+	}
 
 	return date;
 };
